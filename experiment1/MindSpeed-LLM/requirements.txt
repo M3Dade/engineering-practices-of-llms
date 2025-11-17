@@ -1,0 +1,17 @@
+torch==2.5.1
+torch-npu==2.5.1.post1
+numpy==1.25.2
+transformers==4.43.2
+transformers_stream_generator
+sympy
+decorator
+scipy
+sentencepiece
+einops
+datasets
+pybind11
+accelerate
+six
+protobuf
+peft==0.7.1
+tiktoken
