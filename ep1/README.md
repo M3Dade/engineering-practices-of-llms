@@ -233,7 +233,7 @@ bash scripts/run_eval.sh outputs/zen_500m_20k
 1. **Batch Size 配置**：调整 `BATCH_SIZE_PER_DEVICE` 或 `TOKENS_PER_STEP`
 2. **并行策略**：调整 TP、PP、CP 任一参数
 
-吞吐效率的指标计算方式为：`TOKENS_PER_STEP / (sec_per_step)`。其中，`TOKENS_PER_STEP`为训练配置中的参数，`sec_per_step`为训练输出/日志中的`time/step`字段，单位为秒。
+吞吐效率的指标计算方式为：`TOKENS_PER_STEP / (sec_per_step)`。其中，`TOKENS_PER_STEP`为训练配置中的参数，`sec_per_step`为训练输出/日志中的`elapsed time per iteration (ms)`字段，其单位为毫秒，需要转换为秒。
 
 #### 5.2 模型性能消融实验（选做，加分项）
 
