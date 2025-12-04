@@ -24,7 +24,8 @@
 
 - `/data2/MindSpeed-LLM/`: 实验项目代码，与本仓库中的`ep1/MindSpeed-LLM`目录一致（所以无需再手动clone项目）。本项目将以该目录作为工作根目录。
 - `/data2/datasets/Ultra-FineWeb-ShaoZW_subset`: 预训练基础语料，我们的实验将从中采样一份 50GB 的子集作为预训练数据集。
-- `/data2/datasets/eval/mmlu_subset`: MMLU 评估数据集的一个子集，我们将在实验中使用该子集进行模型评估。
+- `/data2/datasets/eval/mmlu_subset`: MMLU 评估数据集的一个子集。
+- `/data2/datasets/eval/cmmlu_subset`: CMMLU 评估数据集的一个子集。
 
 ## 基础操作指南
 
@@ -75,7 +76,8 @@ screen -ls
 - 模型设定：采用类似llama2的模型架构，参数量在500M左右（<530M），具体架构配置见`scripts/pretrain_model.sh`，示例脚本将模型均命名为`zen-500m`，你也可以取自己喜欢的名字。
 - Tokenizer：使用`assets/zen_tokenizer`，是项目组预先基于`Ultra-FineWeb-ShaoZW_subset`数据集训练得到的SentencePiece tokenizer。
 - 预训练数据集：基于`Ultra-FineWeb-ShaoZW_subset`数据集，使用`scripts/pt_data_sample.sh`脚本采样存储规模为50GB的预训练数据集，可自行调整采样策略（详见[数据集准备](#数据集准备)部分）。
-- 研究性任务：针对预训练过程中的训练吞吐效率和模型性能两个维度，各选一个（或多个）影响因子，进行消融实验和分析，具体实验设计见[消融实验](#消融实验)部分。
+- 评估数据集：使用`/data2/datasets/eval/mmlu_subset`和`/data2/datasets/eval/cmmlu_subset`两个数据集进行模型评估。
+- 研究性任务：针对预训练过程中的*训练吞吐效率（必选）*和*模型性能（可选，作为加分项）*两个维度，进行消融实验和分析，具体实验设计见[消融实验](#消融实验)部分。
 
 <!-- 请参考下图工作流合理分配小组工作，安排实验进度：
 
@@ -126,7 +128,6 @@ bash scripts/preprocess_pt_data.sh
 - **DATA_ROOT**：输入数据目录（默认为采样后的数据集路径）
 - **TOKENIZER_DIR**：tokenizer 目录（默认为 `assets/zen_tokenizer`）
 - **OUTPUT_ROOT**：输出目录
-- **WORKERS**：并行处理的 worker 数量（默认 32）
 
 预处理完成后，会在输出目录下生成 `train/` 和 `val/` 两个子目录，分别包含训练集和验证集的 mmap 数据文件。
 
@@ -203,7 +204,7 @@ bash scripts/pretrain_model_resume.sh
 bash scripts/run_eval.sh /path/to/checkpoint_dir
 ```
 
-例如，评估训练 20000 步后的模型：
+例如，评估权重文件夹`outputs/zen_500m_20k`中的模型，具体是哪一个checkpoint由文件夹下的`latest_checkpointed_iteration.txt`文件决定：
 
 ```bash
 bash scripts/run_eval.sh outputs/zen_500m_20k
@@ -212,7 +213,7 @@ bash scripts/run_eval.sh outputs/zen_500m_20k
 #### 4.1 评估配置
 
 评估脚本使用与训练相同的模型架构配置，主要评估参数：
-- **评估数据集**：MMLU 子集（位于 `/data2/datasets/eval_data/mmlu_subset/test`）
+- **评估数据集**：MMLU 子集（位于 `/data2/datasets/eval/mmlu_subset/test`）
 - **评估语言**：英文
 - **max-new-tokens**：64
 
@@ -222,34 +223,36 @@ bash scripts/run_eval.sh outputs/zen_500m_20k
 
 ### 5. 消融实验
 
-消融实验的目的是研究不同因素对预训练效果的影响。建议从以下两个维度选择实验因子：
+#### 5.1 训练吞吐效率消融实验
 
-#### 5.1 训练吞吐效率相关因素
-
-可选的实验因子包括：
+选择一个或多个因子进行调研。可选的实验因子包括：
 
 1. **Batch Size 配置**：调整 `BATCH_SIZE_PER_DEVICE` 或 `TOKENS_PER_STEP`
-2. **并行策略**：调整 TP、PP、CP 参数组合
-3. **序列长度**：调整 `BATCH_LENGTH` 参数
-4. **混合精度**：bf16 vs fp16
+2. **并行策略**：调整 TP、PP、CP 任一参数
 
-#### 5.2 模型性能相关因素
+吞吐效率的指标计算方式为：`TOKENS_PER_STEP / (sec_per_step)`。其中，`TOKENS_PER_STEP`为训练配置中的参数，`sec_per_step`为训练输出/日志中的`time/step`字段，单位为秒。
+
+#### 5.2 模型性能消融实验
 
 可选的实验因子包括：
 
-1. **数据配比**：调整 `--zh-ratio` 和 `--en-ratio` 参数
-2. **数据质量过滤**：调整 `--min-score-zh` 和 `--min-score-en` 参数
-3. **学习率**：调整 `--lr` 参数
-4. **训练步数**：调整 `TRAIN_ITERS` 参数
+1. **学习率**：调整 `--lr` 参数
+2. **训练步数**：调整 `TRAIN_ITERS` 参数
+3. **模型架构**：调整模型架构配置
+4. **上下文长度**：调整 `BATCH_LENGTH` 参数
+5. 其他
+
+以训练最终的val loss作为模型性能的主要指标，以`mmlu_subset`和`cmmlu_subset`数据集的准确率作为辅助指标。
 
 #### 5.3 实验建议流程
 
-1. **确定实验变量**：选择 1-2 个因子作为实验变量
+1. **确定实验变量**：选择 1 个因子作为实验变量
 2. **设计对照组**：保持其他参数不变，仅调整实验变量
 3. **执行训练**：记录不同配置下的训练日志
 4. **分析结果**：使用提供的可视化工具分析结果
+5. 若要研究多个变量，则按上述流程分别进行实验，并进行结果对比。
 
-#### 5.4 结果可视化
+### 6. 结果可视化
 
 项目提供了两个可视化工具用于分析训练结果：
 
@@ -271,7 +274,7 @@ python scripts/plot_exp_loss_after_tokens.py logs/exp1.log logs/exp2.log \
     --smooth-window 50
 ```
 
-这些工具会自动从日志中解析 loss 值，并将横轴转换为 token 数，便于进行公平对比。
+这些工具会自动从日志中解析 loss 值，并将横轴转换为 token 数，便于进行细致对比。
 
 ## 实践作业提交内容
 

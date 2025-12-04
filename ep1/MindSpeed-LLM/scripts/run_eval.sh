@@ -7,7 +7,7 @@ export PYTORCH_NPU_ALLOC_CONF=${PYTORCH_NPU_ALLOC_CONF:-expandable_segments:True
 MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
 MASTER_PORT_BASE=${MASTER_PORT_BASE:-7500}
 TOKENIZER=${TOKENIZER:-assets/zen_tokenizer}
-DATA_ROOT=${DATA_ROOT:-/data2/datasets/eval_data}
+DATA_ROOT=${DATA_ROOT:-/data2/datasets/eval}
 LOG_DIR=${LOG_DIR:-logs/eval_$(date +%Y%m%d_%H%M%S)}
 
 if [[ $# -lt 1 ]]; then
